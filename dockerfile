@@ -1,17 +1,12 @@
-# Usar una imagen base de Python
 FROM python:3.9-slim
 
-# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar los archivos necesarios
-COPY . /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-# Instalar las dependencias
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
 
-# Exponer el puerto del servidor
-EXPOSE 8000
+EXPOSE 8080
 
-# Ejecutar el dashboard (asegúrate de que app.py contiene el dashboard)
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:server"]

@@ -2,3 +2,4 @@ venv/
 debug_sections/
 apartment_scrapper.py
 main_copy.py
+.vercel
