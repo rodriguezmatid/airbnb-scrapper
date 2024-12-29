@@ -1,17 +1,17 @@
-# Usa una imagen base de Python
+# Usar una imagen base de Python
 FROM python:3.9-slim
 
-# Configura el directorio de trabajo dentro del contenedor
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de tu proyecto al contenedor
+# Copiar los archivos necesarios
 COPY . /app
 
-# Instala las dependencias de Python
+# Instalar las dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expón el puerto 8000 (necesario para Dash y Gunicorn)
+# Exponer el puerto del servidor
 EXPOSE 8000
 
-# Configura el comando para iniciar la aplicación
-CMD ["gunicorn", "app:server", "-b", "0.0.0.0:8000"]
+# Ejecutar el dashboard (asegúrate de que app.py contiene el dashboard)
+CMD ["python", "app.py"]
