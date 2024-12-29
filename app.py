@@ -284,5 +284,8 @@ def update_charts(baths, bedrooms, beds, theme):
     return reviews_price_fig, guests_total_fig, rating_total_fig, beds_total_fig, years_hosting_rating_chart, reviews_per_year_chart, reviews_per_year_heatmap_years, reviews_per_year_heatmap_price
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host="0.0.0.0")
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    app.run_server(debug=False, host="0.0.0.0", port=port)
+
 
