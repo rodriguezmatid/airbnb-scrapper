@@ -7,6 +7,7 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-EXPOSE 8080
+ENV PORT=10000
+EXPOSE $PORT
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:server"]
+CMD gunicorn --bind 0.0.0.0:$PORT app:server

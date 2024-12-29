@@ -3,6 +3,7 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.express as px
+from os import environ
 
 # Cargar los datos desde el CSV
 def cargar_datos():
