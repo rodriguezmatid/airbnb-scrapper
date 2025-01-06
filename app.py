@@ -22,6 +22,7 @@ df = cargar_datos()
 
 # Configurar Dash
 app = dash.Dash(__name__)
+server = app.server  # Esta es la aplicación WSGI que Gunicorn necesita
 
 app.layout = html.Div([
     html.Div([
@@ -283,8 +284,6 @@ def update_charts(baths, bedrooms, beds, theme):
     )
 
     return reviews_price_fig, guests_total_fig, rating_total_fig, beds_total_fig, years_hosting_rating_chart, reviews_per_year_chart, reviews_per_year_heatmap_years, reviews_per_year_heatmap_price
-
-server = app.server
 
 if __name__ == "__main__":
     app.run_server(debug=True)
