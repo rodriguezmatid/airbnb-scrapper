@@ -13,19 +13,16 @@ import csv
 
 def configure_driver():
     """Configura y retorna el driver de Selenium"""
-    options = webdriver.ChromeOptions()
-    # Comentar headless para ver la interacción
-    # options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    chrome_options = webdriver.ChromeOptions()
+    # Comentamos la opción headless para ver el navegador
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--window-size=1920,1080')
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     
-    return webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 def save_debug_sections(soup, debug_dir="debug_sections"):
     """Guarda diferentes secciones del HTML en archivos separados"""
@@ -300,27 +297,107 @@ def parse_listings(soup):
     
     return listing_urls
 
-def fetch_airbnb_data(url):
-    """Obtiene los datos de la página de búsqueda de Airbnb"""
+def find_next_button(soup):
+    """Busca el botón de siguiente página y retorna su URL"""
+    print("\nDEBUG: Buscando botón siguiente...")
+    
+    # Método 1: Buscar por nav y aria-label
+    pagination_nav = soup.find("nav", {"aria-label": "Paginación de los resultados de búsqueda"})
+    if pagination_nav:
+        print("DEBUG: Encontrado contenedor de paginación")
+        
+        # Imprimir todos los botones y enlaces encontrados
+        all_buttons = pagination_nav.find_all(["button", "a"])        
+        # Intentar diferentes métodos para encontrar el botón siguiente
+        next_button = (
+            pagination_nav.find("a", {"aria-label": "Siguiente"}) or
+            pagination_nav.find("button", {"aria-label": "Siguiente"}) or
+            pagination_nav.find("a", string="Siguiente") or
+            pagination_nav.find("button", string="Siguiente")
+        )
+        
+        if next_button:
+            if 'href' in next_button.attrs:
+                next_url = "https://www.airbnb.com" + next_button['href']
+                print(f"DEBUG: URL siguiente encontrada: {next_url}")
+                return next_url
+            else:
+                print("DEBUG: Botón encontrado pero sin atributo href")
+                print("DEBUG: Atributos del botón:", next_button.attrs)
+    else:
+        print("DEBUG: No se encontró el contenedor de paginación principal")
+        # Buscar cualquier elemento de navegación
+        all_navs = soup.find_all("nav")
+        print(f"DEBUG: Navegaciones encontradas: {len(all_navs)}")
+        for nav in all_navs:
+            print(f"DEBUG: Nav con clases: {nav.get('class')}, aria-label: {nav.get('aria-label')}")
+    
+    return None
+
+def fetch_airbnb_data(base_url):
+    """Obtiene los datos de todas las páginas de búsqueda de Airbnb"""
+    all_listing_urls = []
     driver = configure_driver()
+    
     try:
-        print(f"Accediendo a URL de búsqueda: {url}")
-        driver.get(url)
+        print("\n=== FASE 1: ANÁLISIS INICIAL ===")
+        print("→ Accediendo a la página principal...")
+        driver.get(base_url)
         time.sleep(5)
+        
+        print("→ Buscando número total de alojamientos...")
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        total_listings = get_total_listings(soup)
+        
+        if total_listings:
+            total_pages = calculate_total_pages(total_listings)
+            print(f"✓ Encontrados {total_listings} alojamientos")
+            print(f"✓ Se procesarán {total_pages} páginas")
+        else:
+            print("! No se pudo determinar el número total. Usando 4 páginas por defecto")
+            total_pages = 4
+        
+        print("\n=== FASE 2: RECOLECCIÓN DE URLS ===")
+        for page in range(total_pages):
+            print(f"\n--- Página {page + 1} de {total_pages} ---")
+            current_url = f"{base_url}&items_offset={page * 18}"
+            
+            print("→ Cargando página...")
+            driver.get(current_url)
+            time.sleep(5)
 
-        # Hacer scroll para cargar más resultados
-        for i in range(3):
-            print(f"Scroll {i+1}/3...")
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(3)
+            print("→ Haciendo scroll para cargar todos los elementos...")
+            for i in range(3):
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(3)
 
-        page_source = driver.page_source
-        soup = BeautifulSoup(page_source, "html.parser")
-        return soup, driver
+            soup = BeautifulSoup(driver.page_source, "html.parser")
+            items = soup.find_all("div", {"data-testid": "card-container"})
+            
+            if not items:
+                print("! No se encontraron alojamientos en esta página")
+                break
+            
+            new_urls = 0
+            for item in items:
+                url = get_listing_url(item)
+                if url and url not in all_listing_urls:
+                    all_listing_urls.append(url)
+                    new_urls += 1
+            
+            print(f"✓ Encontrados {len(items)} alojamientos")
+            print(f"✓ Nuevas URLs añadidas: {new_urls}")
+            print(f"✓ Total acumulado: {len(all_listing_urls)}")
+            
+        print(f"\n=== RESUMEN FINAL ===")
+        print(f"✓ Total de URLs únicas recolectadas: {len(all_listing_urls)}")
+        
+        return all_listing_urls, driver
+        
     except Exception as e:
-        print(f"Error al obtener datos de búsqueda: {e}")
-        driver.quit()
-        return None, None
+        print("\n!!! ERROR !!!")
+        print(f"→ {str(e)}")
+        return [], driver
 
 def save_to_csv(listings_data, filename="airbnb_data.csv"):
     """Guarda los datos de los listados en un archivo CSV"""
@@ -372,32 +449,64 @@ def save_to_csv(listings_data, filename="airbnb_data.csv"):
         print(f"Error al guardar el CSV: {e}")
         return False
 
+def get_total_listings(soup):
+    """Obtiene el número total de alojamientos disponibles"""
+    try:
+        # Buscar por la clase específica que encontramos
+        total_element = soup.find("span", {"class": "a8jt5op"})
+        if total_element:
+            # Extraer el número usando regex
+            number = re.search(r'(\d+)\s+alojamientos?', total_element.text)
+            if number:
+                total = int(number.group(1))
+                print(f"DEBUG: Total de alojamientos encontrados: {total}")
+                return total
+            
+        # Método alternativo: buscar en el h1
+        h1_element = soup.find("h1", {"class": "hpipapi"})
+        if h1_element:
+            number = re.search(r'(\d+)\s+alojamientos?', h1_element.text)
+            if number:
+                total = int(number.group(1))
+                print(f"DEBUG: Total de alojamientos encontrados (h1): {total}")
+                return total
+                
+        print("No se pudo encontrar el número de alojamientos")
+        return None
+        
+    except Exception as e:
+        print(f"Error al obtener total de alojamientos: {e}")
+        return None
+
+def calculate_total_pages(total_listings, listings_per_page=18):
+    """Calcula el número total de páginas necesarias"""
+    return -(-total_listings // listings_per_page)  # Redondeo hacia arriba
+
 if __name__ == "__main__":
-    # URL de búsqueda
-    search_url = "https://www.airbnb.com.ar/s/Puerto-Madero--Buenos-Aires/homes?place_id=ChIJiQPXwtk0o5URj2cW455eew4&refinement_paths%5B%5D=%2Fhomes&checkin=2025-01-08&checkout=2025-01-12&date_picker_type=calendar&adults=1&search_type=user_map_move&query=Puerto%20Madero%2C%20Buenos%20Aires&flexible_trip_lengths%5B%5D=one_week&monthly_start_date=2025-01-01&monthly_length=3&monthly_end_date=2025-04-01&search_mode=regular_search&price_filter_input_type=0&price_filter_num_nights=4&channel=EXPLORE&ne_lat=-34.61036890486259&ne_lng=-58.35453103477175&sw_lat=-34.621341000508245&sw_lng=-58.36400048371502&zoom=16.27154484177234&zoom_level=16.27154484177234&search_by_map=true"
+    search_url = "https://www.airbnb.com.ar/s/Microcentro/homes?refinement_paths%5B%5D=%2Fhomes&flexible_trip_lengths%5B%5D=one_week&monthly_start_date=2025-02-01&monthly_length=3&monthly_end_date=2025-05-01&price_filter_input_type=0&channel=EXPLORE&date_picker_type=calendar&checkin=2025-01-16&checkout=2025-01-19&adults=2&source=structured_search_input_header&search_type=user_map_move&query=Microcentro&place_id=ChIJoZjYMB7LvJUR-lIvu29mQ6w&search_mode=regular_search&price_filter_num_nights=3&ne_lat=-34.593555291120474&ne_lng=-58.371582208467714&sw_lat=-34.617006214929525&sw_lng=-58.39181891193829&zoom=15.175922923838742&zoom_level=15.175922923838742&search_by_map=true"
 
     print("Iniciando scraping de Airbnb...")
-    soup, driver = fetch_airbnb_data(search_url)
+    listing_urls, driver = fetch_airbnb_data(search_url)
 
     try:
-        if soup:
-            listing_urls = parse_listings(soup)
-            print(f"\nEncontrados {len(listing_urls)} URLs para procesar")
+        if listing_urls:
+            print(f"\nEncontrados {len(listing_urls)} URLs totales para procesar")
             
             all_listings_data = []
             for i, url in enumerate(listing_urls, 1):
                 print(f"\nProcesando listado {i}/{len(listing_urls)}")
                 listing_data = scrape_listing(url)
                 if listing_data:
-                    listing_data['link'] = url  # Agregar el URL al diccionario de datos
+                    listing_data['link'] = url
                     all_listings_data.append(listing_data)
                     print(f"Listado {i} procesado exitosamente")
                 else:
                     print(f"Error al procesar listado {i}")
+                
+                # Pausa entre listados para evitar bloqueos
+                time.sleep(2)
             
             print(f"\nProcesados {len(all_listings_data)} listados exitosamente")
-            
-            # Guardar los datos en CSV
             save_to_csv(all_listings_data)
             
     except Exception as e:

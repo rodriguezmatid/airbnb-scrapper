@@ -3,3 +3,5 @@ debug_sections/
 apartment_scrapper.py
 main_copy.py
 .vercel
+vercel.json
+.vercelignore
