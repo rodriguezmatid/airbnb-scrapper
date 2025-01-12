@@ -24,140 +24,111 @@ df = cargar_datos()
 app = dash.Dash(__name__)
 server = app.server  # Esta es la aplicación WSGI que Gunicorn necesita
 
+# Actualizar colores y estilos de StayBA
+STAYBA_COLORS = {
+    'primary': '#E85C3F',      # Naranja StayBA
+    'secondary': '#2c3e50',    # Azul oscuro
+    'background': '#FFFFFF',   # Fondo blanco
+    'light_gray': '#f8f9fa',  # Gris claro para secciones
+    'text': '#2c3e50',        # Color texto principal
+    'accent': '#FF8B6A'       # Naranja más claro para acentos
+}
+
 app.layout = html.Div([
+    # Header con logo y título
     html.Div([
+        # Logo y título
+        html.Div([
+            html.Img(src='assets/stayba-logo.png', 
+                    className="h-10 mr-4"),
+            html.H1("StayBA Analytics", 
+                   className="text-2xl font-bold text-[#E85C3F]")
+        ], className="flex items-center"),
+        
+        # Selector de tema
         html.Div([
             dcc.RadioItems(
                 id="theme-selector",
                 options=[
-                    {"label": "Light", "value": "plotly_white"},
-                    {"label": "Dark", "value": "plotly_dark"}
+                    {"label": "☀️", "value": "plotly_white"},
+                    {"label": "🌙", "value": "plotly_dark"}
                 ],
                 value="plotly_white",
                 inline=True,
-                style={"float": "left", "marginLeft": "20px", "marginTop": "10px"}
+                className="bg-white bg-opacity-10 px-4 py-2 rounded-full text-white"
             ),
-        ], style={"textAlign": "left"}),
-        html.H1("StayBA Scrapper", style={
-            "textAlign": "center", 
-            "color": "white", 
-            "backgroundColor": "#2c3e50", 
-            "padding": "20px", 
-            "borderRadius": "10px"
-        }),
-    ], style={"marginBottom": "20px", "position": "relative"}),
+        ])
+    ], className="bg-gradient-to-r from-[#E85C3F] to-[#FF8B6A] p-4 rounded-xl shadow-lg flex justify-between items-center mb-6"),
 
+    # Filtros en una fila
     html.Div([
         html.Div([
-            html.Div([
-                html.Label("Baths", style={"fontSize": "16px", "fontWeight": "bold", "marginBottom": "5px"}),
-                dcc.Dropdown(
-                    id="bathroom-filter",
-                    options=[
-                        {"label": f"{i}", "value": i} for i in sorted(df["baths"].dropna().unique())
-                    ] if not df.empty else [],
-                    placeholder="Select Baths",
-                    style={"width": "100%", "marginBottom": "10px"}
-                ),
-            ], style={"display": "inline-block", "width": "30%", "verticalAlign": "top", "marginRight": "10px"}),
-
-            html.Div([
-                html.Label("Bedrooms", style={"fontSize": "16px", "fontWeight": "bold", "marginBottom": "5px"}),
-                dcc.Dropdown(
-                    id="bedroom-filter",
-                    options=[
-                        {"label": f"{i}", "value": i} for i in sorted(df["bedrooms"].dropna().unique())
-                    ] if not df.empty else [],
-                    placeholder="Select Bedrooms",
-                    style={"width": "100%", "marginBottom": "10px"}
-                ),
-            ], style={"display": "inline-block", "width": "30%", "verticalAlign": "top", "marginRight": "10px"}),
-
-            html.Div([
-                html.Label("Beds", style={"fontSize": "16px", "fontWeight": "bold", "marginBottom": "5px"}),
-                dcc.Dropdown(
-                    id="beds-filter",
-                    options=[
-                        {"label": f"{i}", "value": i} for i in sorted(df["beds"].dropna().unique())
-                    ] if not df.empty else [],
-                    placeholder="Select Beds",
-                    style={"width": "100%", "marginBottom": "10px"}
-                ),
-            ], style={"display": "inline-block", "width": "30%", "verticalAlign": "top"}),
-        ], style={"marginBottom": "20px", "textAlign": "center"}),
+            html.Label("BAÑOS", className="text-xs font-bold text-gray-600 block mb-2"),
+            dcc.Dropdown(
+                id="bathroom-filter",
+                options=[{"label": f"{i}", "value": i} for i in sorted(df["baths"].dropna().unique())] if not df.empty else [],
+                placeholder="Seleccionar",
+                className="w-full"
+            ),
+        ], className="bg-white p-4 rounded-lg shadow-sm"),
 
         html.Div([
-            dcc.Graph(id="reviews-price-chart", style={
-                "marginBottom": "40px",
-                "border": "1px solid #ccc",
-                "borderRadius": "10px",
-                "boxShadow": "2px 2px 10px #aaa",
-                "backgroundColor": "white"
-            }),
-            dcc.Graph(id="guests-total-chart", style={
-                "marginBottom": "40px",
-                "border": "1px solid #ccc",
-                "borderRadius": "10px",
-                "boxShadow": "2px 2px 10px #aaa",
-                "backgroundColor": "white"
-            }),
-            dcc.Graph(id="rating-total-chart", style={
-                "marginBottom": "40px",
-                "border": "1px solid #ccc",
-                "borderRadius": "10px",
-                "boxShadow": "2px 2px 10px #aaa",
-                "backgroundColor": "white"
-            }),
-            dcc.Graph(id="beds-total-chart", style={
-                "marginBottom": "40px",
-                "border": "1px solid #ccc",
-                "borderRadius": "10px",
-                "boxShadow": "2px 2px 10px #aaa",
-                "backgroundColor": "white"
-            }),
-            html.Div([
-                dcc.Graph(id="years-hosting-rating-chart", style={
-                    "display": "inline-block", "width": "49%", "marginRight": "1%",
-                    "border": "1px solid #ccc",
-                    "borderRadius": "10px",
-                    "boxShadow": "2px 2px 10px #aaa",
-                    "backgroundColor": "white"
-                }),
-                dcc.Graph(id="reviews-per-year-chart", style={
-                    "display": "inline-block", "width": "49%",
-                    "border": "1px solid #ccc",
-                    "borderRadius": "10px",
-                    "boxShadow": "2px 2px 10px #aaa",
-                    "backgroundColor": "white"
-                }),
-            ], style={"padding": "20px"}),
-            html.Div([
-                dcc.Graph(id="reviews-per-year-heatmap-years", style={
-                    "display": "inline-block", "width": "49%", "marginRight": "1%",
-                    "border": "1px solid #ccc",
-                    "borderRadius": "10px",
-                    "boxShadow": "2px 2px 10px #aaa",
-                    "backgroundColor": "white"
-                }),
-                dcc.Graph(id="reviews-per-year-heatmap-price", style={
-                    "display": "inline-block", "width": "49%",
-                    "border": "1px solid #ccc",
-                    "borderRadius": "10px",
-                    "boxShadow": "2px 2px 10px #aaa",
-                    "backgroundColor": "white"
-                }),
-            ], style={"padding": "20px"}),
-        ], style={"padding": "20px"}),
-    ])
-], style={
-    "fontFamily": "Arial, sans-serif", 
-    "backgroundColor": "#ecf0f1", 
-    "padding": "20px",
-    "maxWidth": "1200px",
-    "margin": "auto",
-    "borderRadius": "10px",
-    "boxShadow": "2px 2px 15px #aaa"
-})
+            html.Label("HABITACIONES", className="text-xs font-bold text-gray-600 block mb-2"),
+            dcc.Dropdown(
+                id="bedroom-filter",
+                options=[{"label": f"{i}", "value": i} for i in sorted(df["bedrooms"].dropna().unique())] if not df.empty else [],
+                placeholder="Seleccionar",
+                className="w-full"
+            ),
+        ], className="bg-white p-4 rounded-lg shadow-sm"),
+
+        html.Div([
+            html.Label("CAMAS", className="text-xs font-bold text-gray-600 block mb-2"),
+            dcc.Dropdown(
+                id="beds-filter",
+                options=[{"label": f"{i}", "value": i} for i in sorted(df["beds"].dropna().unique())] if not df.empty else [],
+                placeholder="Seleccionar",
+                className="w-full"
+            ),
+        ], className="bg-white p-4 rounded-lg shadow-sm"),
+    ], className="grid grid-cols-3 gap-4 mb-6 bg-gray-100 p-4 rounded-xl"),
+
+    # Grid de gráficos
+    html.Div([
+        html.Div([
+            dcc.Graph(id="reviews-price-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="guests-total-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="rating-total-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="beds-total-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="years-hosting-rating-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="reviews-per-year-chart")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="reviews-per-year-heatmap-years")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+        
+        html.Div([
+            dcc.Graph(id="reviews-per-year-heatmap-price")
+        ], className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow"),
+    ], className="grid grid-cols-2 gap-6")
+
+], className="min-h-screen bg-gray-50 p-6")
 
 @app.callback(
     [
@@ -196,10 +167,10 @@ def update_charts(baths, bedrooms, beds, theme):
         y="price_original",
         color="rating",
         size="price_original",
-        title="Number of Reviews vs Price Per Night",
-        labels={"reviews": "Number of Reviews", "price_original": "Price Per Night"},
+        title="Reseñas vs Precio por Noche",
+        labels={"reviews": "Número de Reseñas", "price_original": "Precio por Noche"},
         template=theme,
-        color_continuous_scale="Viridis",
+        color_continuous_scale=[[0, '#E85C3F'], [1, '#FF8B6A']],
         size_max=30
     )
 
