@@ -93,6 +93,94 @@ app.layout = html.Div([
         ], className="bg-white p-4 rounded-lg shadow-sm"),
     ], className="grid grid-cols-3 gap-4 mb-6 bg-gray-100 p-4 rounded-xl"),
 
+    # Stats Cards
+    html.Div([
+        # Precios
+        html.Div([
+            html.Div([
+                html.H3("Estadísticas de Precios", 
+                       className="text-lg font-bold text-[#E85C3F] mb-4"),
+                html.Div([
+                    html.Div([
+                        html.P("Promedio", className="text-sm text-gray-500"),
+                        html.P(id="precio-promedio", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Mediana", className="text-sm text-gray-500"),
+                        html.P(id="precio-mediana", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Moda", className="text-sm text-gray-500"),
+                        html.P(id="precio-moda", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Mínimo", className="text-sm text-gray-500"),
+                        html.P(id="precio-minimo", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Máximo", className="text-sm text-gray-500"),
+                        html.P(id="precio-maximo", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                ], className="flex justify-between gap-4")
+            ], className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300")
+        ], className="col-span-4"),
+
+        # Reviews y Ratings
+        html.Div([
+            html.Div([
+                html.H3("Métricas de Reviews", 
+                       className="text-lg font-bold text-[#E85C3F] mb-4"),
+                html.Div([
+                    html.Div([
+                        html.P("Rating Promedio", className="text-sm text-gray-500"),
+                        html.P(id="rating-promedio", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Reviews/Año", className="text-sm text-gray-500"),
+                        html.P(id="reviews-por-año", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Total Listados", className="text-sm text-gray-500"),
+                        html.P(id="total-listados", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                ], className="flex justify-between gap-4")
+            ], className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300")
+        ], className="col-span-2"),
+
+        # Métricas de Propiedades
+        html.Div([
+            html.Div([
+                html.H3("Métricas de Propiedades", 
+                       className="text-lg font-bold text-[#E85C3F] mb-4"),
+                html.Div([
+                    html.Div([
+                        html.P("Años Promedio Host", className="text-sm text-gray-500"),
+                        html.P(id="años-promedio", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Ocupación Estimada", className="text-sm text-gray-500"),
+                        html.P(id="ocupacion-estimada", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                    html.Div([
+                        html.P("Ingreso Mensual Est.", className="text-sm text-gray-500"),
+                        html.P(id="ingreso-mensual", 
+                              className="text-2xl font-bold text-gray-800"),
+                    ], className="flex-1"),
+                ], className="flex justify-between gap-4")
+            ], className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300")
+        ], className="col-span-2")
+    ], className="grid grid-cols-4 gap-4 mb-6"),
+
     # Grid de gráficos
     html.Div([
         html.Div([
@@ -213,14 +301,58 @@ def update_charts(baths, bedrooms, beds, theme):
         size_max=30
     )
 
-    years_hosting_rating_chart = px.line(
-        filtered_df,
+    # Agrupar datos por años de anfitrión
+    avg_ratings = filtered_df.groupby('years_hosting')['rating'].agg([
+        'mean',
+        'count',
+        'std'
+    ]).reset_index()
+    
+    years_hosting_rating_chart = px.scatter(
+        avg_ratings,
         x="years_hosting",
-        y="rating",
-        title="Years Hosting vs Rating",
-        labels={"years_hosting": "Years Hosting", "rating": "Rating"},
+        y="mean",
+        size="count",  # Tamaño basado en cantidad de propiedades
+        error_y="std",  # Barras de error para mostrar la variabilidad
+        title="Promedio de Calificaciones por Años de Experiencia",
+        labels={
+            "years_hosting": "Años como Anfitrión",
+            "mean": "Calificación Promedio",
+            "count": "Cantidad de Propiedades"
+        },
         template=theme,
-        markers=True
+        color_discrete_sequence=['#E85C3F']
+    )
+
+    years_hosting_rating_chart.update_layout(
+        title={
+            'text': f"Calificación promedio por años de anfitrión<br><sup>Tamaño del punto indica cantidad de propiedades</sup>",
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        hovermode='closest',
+        showlegend=False,
+        yaxis=dict(
+            range=[4, 5.1],
+            dtick=0.2,
+            tickformat=".1f",
+            title="Calificación Promedio"
+        ),
+        xaxis=dict(
+            title="Años como Anfitrión",
+            dtick=1
+        )
+    )
+
+    years_hosting_rating_chart.update_traces(
+        hovertemplate="<br>".join([
+            "<b>Años como Anfitrión:</b> %{x}",
+            "<b>Calificación Promedio:</b> %{y:.2f}",
+            "<b>Cantidad de Propiedades:</b> %{marker.size}",
+            "<extra></extra>"
+        ])
     )
 
     reviews_per_year_chart = px.bar(
@@ -255,6 +387,65 @@ def update_charts(baths, bedrooms, beds, theme):
     )
 
     return reviews_price_fig, guests_total_fig, rating_total_fig, beds_total_fig, years_hosting_rating_chart, reviews_per_year_chart, reviews_per_year_heatmap_years, reviews_per_year_heatmap_price
+
+@app.callback(
+    [Output("precio-promedio", "children"),
+     Output("precio-mediana", "children"),
+     Output("precio-moda", "children"),
+     Output("precio-minimo", "children"),
+     Output("precio-maximo", "children"),
+     Output("rating-promedio", "children"),
+     Output("reviews-por-año", "children"),
+     Output("total-listados", "children"),
+     Output("años-promedio", "children"),
+     Output("ocupacion-estimada", "children"),
+     Output("ingreso-mensual", "children")],
+    [Input("bathroom-filter", "value"),
+     Input("bedroom-filter", "value"),
+     Input("beds-filter", "value")]
+)
+def update_stats(baths, bedrooms, beds):
+    filtered_df = df
+    if baths is not None:
+        filtered_df = filtered_df[filtered_df["baths"] == baths]
+    if bedrooms is not None:
+        filtered_df = filtered_df[filtered_df["bedrooms"] == bedrooms]
+    if beds is not None:
+        filtered_df = filtered_df[filtered_df["beds"] == beds]
+    
+    # Calcular estadísticas
+    precio_moda = filtered_df['price_original'].mode().iloc[0] if not filtered_df.empty else 0
+    ocupacion_estimada = min(filtered_df['reviews_per_year'].mean() * 3, 100) if not filtered_df.empty else 0
+    precio_promedio = filtered_df['price_original'].mean() if not filtered_df.empty else 0
+    ingreso_mensual = (precio_promedio * 30 * (ocupacion_estimada/100))
+    
+    stats = {
+        "precio_promedio": f"${precio_promedio:.0f}",
+        "precio_mediana": f"${filtered_df['price_original'].median():.0f}",
+        "precio_moda": f"${precio_moda:.0f}",
+        "precio_minimo": f"${filtered_df['price_original'].min():.0f}",
+        "precio_maximo": f"${filtered_df['price_original'].max():.0f}",
+        "rating_promedio": f"{filtered_df['rating'].mean():.1f}",
+        "reviews_año": f"{filtered_df['reviews_per_year'].mean():.1f}",
+        "total_listados": f"{len(filtered_df)}",
+        "años_promedio": f"{filtered_df['years_hosting'].mean():.1f}",
+        "ocupacion_estimada": f"{ocupacion_estimada:.0f}%",
+        "ingreso_mensual": f"${ingreso_mensual:.0f}"
+    }
+    
+    return [
+        stats["precio_promedio"],
+        stats["precio_mediana"],
+        stats["precio_moda"],
+        stats["precio_minimo"],
+        stats["precio_maximo"],
+        stats["rating_promedio"],
+        stats["reviews_año"],
+        stats["total_listados"],
+        stats["años_promedio"],
+        stats["ocupacion_estimada"],
+        stats["ingreso_mensual"]
+    ]
 
 if __name__ == "__main__":
     app.run_server(debug=True)
