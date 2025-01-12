@@ -50,12 +50,12 @@ python app.py
 
 ### Servidor (producción)
 ```bash
-nohup python app.py > app.log 2>&1 &
+nohup python3 app.py > app.log 2>&1 &
 ```
 
-El dashboard estará disponible en:
+El dashboard está disponible en:
 ```
-http://tu-ip:8050
+http://54.232.166.13:8050
 ```
 
 ## Estructura del Proyecto
@@ -87,21 +87,9 @@ Verificar estado del servicio:
 ```bash
 ps aux | grep python
 ```
+Este comando muestra todos los procesos de Python en ejecución, permitiéndote identificar el PID y estado de la aplicación.
 
 Detener el servicio:
 ```bash
 pkill -f "python app.py"
 ```
-
-## Desarrollo
-
-Para contribuir:
-1. Fork el repositorio
-2. Crear rama para tu feature (`git checkout -b feature/NuevaFuncionalidad`)
-3. Commit cambios (`git commit -m 'Agrega nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/NuevaFuncionalidad`)
-5. Crear Pull Request
-
-## Licencia
-
-MIT License
