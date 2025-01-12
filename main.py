@@ -48,7 +48,6 @@ def save_debug_sections(soup, debug_dir="debug_sections"):
             filename = os.path.join(debug_dir, f"{name}.html")
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(section.prettify())
-            print(f"Guardado {filename}")
 
 def scrape_listing(url):
     """Analiza un listado específico de Airbnb"""
@@ -56,7 +55,15 @@ def scrape_listing(url):
     try:
         print(f"\nAnalizando listado: {url}")
         driver.get(url)
-        time.sleep(5)  # Esperar a que cargue la página
+        time.sleep(5)
+        
+        # Guardar HTML para debug
+        page_source = driver.page_source
+        with open("debug_last_page.html", "w", encoding="utf-8") as f:
+            f.write(page_source)
+        
+        soup = BeautifulSoup(page_source, 'html.parser')
+        save_debug_sections(soup)
         
         # Intentar cerrar el modal si existe
         try:
@@ -70,9 +77,6 @@ def scrape_listing(url):
             time.sleep(1)
         except:
             print("No se encontró modal para cerrar o ya estaba cerrado")
-        
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        save_debug_sections(soup)
         
         # Extraer información
         listing_data = {
@@ -207,65 +211,58 @@ def extract_price_info(soup, driver):
     }
     
     try:
-        # Buscar el contenedor de precios
+        # Buscar el contenedor principal de precios
         price_section = soup.find("div", {"data-section-id": "BOOK_IT_SIDEBAR"})
         if price_section:
             # Obtener precio por noche
-            price_display = price_section.find("div", {"class": "_1jo4hgw"})
-            if price_display:
-                discount_price = price_display.find("span", {"class": "_11jcbg2"})
-                if discount_price:
-                    prices["price_discount"] = re.search(r'\$(\d+)', discount_price.text).group(1)
-                
-                original_price = price_display.find("span", {"class": "_1aejdbt"})
-                if original_price:
-                    prices["price_original"] = re.search(r'\$(\d+)', original_price.text).group(1)
-                elif prices["price_discount"] != "0":
-                    prices["price_original"] = prices["price_discount"]
+            price_element = price_section.find("span", {"class": "_11jcbg2"})
+            if price_element:
+                price_text = price_element.text.strip()
+                price_match = re.search(r'[£\$\€](\d+)', price_text)
+                if price_match:
+                    prices["price_original"] = price_match.group(1)
+                    print(f"Precio por noche encontrado: {prices['price_original']}")
 
             # Buscar el desglose de precios
-            price_breakdown = price_section.find_all("div", {"class": "_14omvfj"})
-            if price_breakdown:
-                for item in price_breakdown:
-                    text = item.get_text().lower()
-                    amount_span = item.find("span", {"class": ["_1k4xcdh", "_1rc8xn5"]})
-                    if amount_span:
-                        amount_text = amount_span.text.strip()
-                        is_negative = "-" in amount_text or amount_span.get("class") == ["_1rc8xn5"]
-                        amount = re.search(r'\$(\d+)', amount_text).group(1)
-                        amount = f"-{amount}" if is_negative else amount
-                    else:
-                        amount = "0"
-                    
-                    if "nights" in text:
-                        prices["nights"] = re.search(r'x\s*(\d+)\s*nights?', text).group(1)
-                        prices["total_nights"] = amount
-                    elif "special offer" in text:
-                        prices["special_offer"] = f"-{amount.replace('-', '')}"
-                    elif "cleaning fee" in text:
-                        prices["cleaning_fee"] = amount
-                    elif "service fee" in text:
-                        prices["service_fee"] = amount
+            price_items = price_section.find_all("div", {"class": "_14omvfj"})
+            for item in price_items:
+                text = item.get_text().lower()
+                price_span = item.find("span", {"class": "_1k4xcdh"})
+                
+                if price_span:
+                    amount_text = price_span.text.strip()
+                    amount_match = re.search(r'[£\$\€](\d+)', amount_text)
+                    if amount_match:
+                        amount = amount_match.group(1)
+                        
+                        if "x" in text and "night" in text:
+                            nights_match = re.search(r'x\s*(\d+)\s*night', text)
+                            if nights_match:
+                                prices["nights"] = nights_match.group(1)
+                                prices["total_nights"] = amount
+                        elif "cleaning fee" in text:
+                            prices["cleaning_fee"] = amount
+                        elif "service fee" in text:
+                            prices["service_fee"] = amount
+                        elif "special offer" in text or "discount" in text:
+                            prices["special_offer"] = amount
 
-            # Buscar precio total
-            total_text = price_section.find("div", {"class": "_1vk118j"})
-            if not total_text:  # Si no lo encuentra con la primera clase, intentar con otra
-                total_text = price_section.find("div", {"class": "_182z7aq1"})
-            
-            if total_text:
-                total_match = re.search(r'\$(\d+)', total_text.text)
-                if total_match:
-                    prices["total"] = total_match.group(1)
-                else:
-                    # Buscar en elementos hijos si no encuentra directamente
-                    total_span = total_text.find("span", {"class": "_j1kt73"})
-                    if total_span:
-                        total_match = re.search(r'\$(\d+)', total_span.text)
-                        if total_match:
-                            prices["total"] = total_match.group(1)
+            # Calcular el total usando la fórmula
+            try:
+                total = (int(prices["total_nights"]) - 
+                        int(prices["special_offer"]) + 
+                        int(prices["cleaning_fee"]) + 
+                        int(prices["service_fee"]))
+                prices["total"] = str(total)
+                print(f"Total calculado: {total}")
+            except ValueError as e:
+                print(f"Error al calcular el total: {e}")
 
     except Exception as e:
         print(f"Error al extraer precios: {e}")
+        if price_section:
+            print("HTML de la sección de precios:")
+            print(price_section.prettify())
     
     print("\nInformación de precios encontrada:")
     for key, value in prices.items():
@@ -504,7 +501,7 @@ if __name__ == "__main__":
                     print(f"Error al procesar listado {i}")
                 
                 # Pausa entre listados para evitar bloqueos
-                time.sleep(2)
+                time.sleep(3)
             
             print(f"\nProcesados {len(all_listings_data)} listados exitosamente")
             save_to_csv(all_listings_data)
